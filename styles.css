@@ -316,6 +316,48 @@ tr.highlight td { background: color-mix(in srgb, var(--team-accent) 12%, transpa
   padding: 10px 16px;
 }
 
+.live-banner {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  font-size: 14px;
+}
+
+.live-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.live-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+.live-status.is-live .live-badge {
+  background: var(--loss);
+  color: #fff;
+  animation: live-pulse 1.6s infinite;
+}
+
+.live-score {
+  font-weight: 800;
+  font-size: 16px;
+}
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 .demo-banner {
   text-align: center;
   font-size: 12px;

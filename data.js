@@ -124,6 +124,8 @@ const TEAMS = {
     accent: "#bd3039",
     logoText: "BOS",
     blurb: "AL East · Fenway Park, Boston, MA",
+    // Free, official, no API key required: https://statsapi.mlb.com
+    liveConfig: { provider: "mlb-stats-api", teamId: 111 },
     scores: [
       { date: "2026-08-19", opponent: "Tampa Bay Rays", home: true, result: "W", teamScore: 6, oppScore: 3, note: "" },
       { date: "2026-08-20", opponent: "Tampa Bay Rays", home: true, result: "W", teamScore: 4, oppScore: 2, note: "" },

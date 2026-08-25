@@ -8,6 +8,83 @@ const BASE_SECTIONS = [
 
 let activeTeam = TEAM_KEYS[0];
 let activeSection = "scores";
+let liveInterval = null;
+
+function stopLivePolling() {
+  if (liveInterval) {
+    clearInterval(liveInterval);
+    liveInterval = null;
+  }
+}
+
+async function fetchLiveGame(mlbTeamId) {
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${mlbTeamId}&date=${dateStr}&hydrate=linescore`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const games = (data.dates && data.dates[0] && data.dates[0].games) || [];
+  if (games.length === 0) return null;
+
+  const g = games[0];
+  const isHome = g.teams.home.team.id === mlbTeamId;
+  const us = isHome ? g.teams.home : g.teams.away;
+  const them = isHome ? g.teams.away : g.teams.home;
+  const state = g.status.abstractGameState; // "Preview" | "Live" | "Final"
+
+  let detail = "";
+  if (state === "Live" && g.linescore) {
+    detail = `${g.linescore.inningState || ""} ${g.linescore.currentInningOrdinal || ""}`.trim();
+  } else if (state === "Preview") {
+    detail = new Date(g.gameDate).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  } else if (state === "Final") {
+    detail = "Final";
+  }
+
+  return {
+    state,
+    home: isHome,
+    opponent: them.team.name,
+    teamScore: us.score ?? 0,
+    oppScore: them.score ?? 0,
+    detail,
+  };
+}
+
+function renderLiveBannerContent(team, game) {
+  if (!game) {
+    return `<div class="live-status">No ${team.name} game today.</div>`;
+  }
+  const label = game.state === "Live" ? "LIVE" : game.state === "Final" ? "FINAL" : "UPCOMING";
+  const vs = game.home ? `vs ${game.opponent}` : `@ ${game.opponent}`;
+  return `
+    <div class="live-status ${game.state === "Live" ? "is-live" : ""}">
+      <span class="live-badge">${label}</span>
+      <strong>${team.name}</strong> ${vs}
+      ${game.state !== "Preview" ? `<span class="live-score">${game.teamScore}–${game.oppScore}</span>` : ""}
+      ${game.detail ? `<span class="meta">${game.detail}</span>` : ""}
+    </div>
+  `;
+}
+
+function renderLiveBanner(team) {
+  const banner = document.createElement("div");
+  banner.className = "live-banner";
+  banner.textContent = "Checking for a live game…";
+
+  const update = async () => {
+    try {
+      const game = await fetchLiveGame(team.liveConfig.teamId);
+      banner.innerHTML = renderLiveBannerContent(team, game);
+    } catch (err) {
+      banner.innerHTML = `<div class="live-status">Live score unavailable right now (${err.message}).</div>`;
+    }
+  };
+
+  update();
+  liveInterval = setInterval(update, 30000);
+  return banner;
+}
 
 function initials(name) {
   return name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
@@ -172,6 +249,8 @@ const RENDERERS = {
 };
 
 function renderPanel() {
+  stopLivePolling();
+
   const team = TEAMS[activeTeam];
   const sections = team.history ? BASE_SECTIONS.concat([{ key: "history", label: "History" }]) : BASE_SECTIONS;
   if (!sections.some(s => s.key === activeSection)) activeSection = "scores";
@@ -214,6 +293,9 @@ function renderPanel() {
   const content = document.createElement("div");
   content.style.setProperty("--team-color", team.color);
   content.style.setProperty("--team-accent", team.accent);
+  if (activeSection === "scores" && team.liveConfig) {
+    content.appendChild(renderLiveBanner(team));
+  }
   content.appendChild(RENDERERS[activeSection](team));
   panel.appendChild(content);
 }
