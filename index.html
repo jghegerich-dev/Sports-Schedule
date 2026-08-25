@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Boston Sports Tracker</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">
+    <span class="brand-mark">B</span>
+    <div>
+      <h1>Boston Sports Tracker</h1>
+      <p class="tagline">Patriots · Red Sox · Celtics</p>
+    </div>
+  </div>
+  <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
+</header>
+
+<nav class="team-nav" id="team-nav" role="tablist" aria-label="Select team"></nav>
+
+<main id="team-panel"></main>
+
+<div class="demo-banner">
+  Sample data for demonstration — not a live feed. See <code>data.js</code> to plug in a real sports API.
+</div>
+
+<footer class="site-footer">
+  <p>Built for Boston sports fans. Data last refreshed for demo purposes only.</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
