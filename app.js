@@ -86,6 +86,149 @@ function renderLiveBanner(team) {
   return banner;
 }
 
+function mlbSeasonYear() {
+  return new Date().getFullYear();
+}
+
+async function fetchRecentGames(teamId, days = 21) {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(start.getDate() - days);
+  const fmt = d => d.toISOString().slice(0, 10);
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${teamId}&startDate=${fmt(start)}&endDate=${fmt(end)}&hydrate=linescore`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+
+  const games = [];
+  (data.dates || []).forEach(d => {
+    (d.games || []).forEach(g => {
+      if (g.status.abstractGameState !== "Final") return;
+      const isHome = g.teams.home.team.id === teamId;
+      const us = isHome ? g.teams.home : g.teams.away;
+      const them = isHome ? g.teams.away : g.teams.home;
+      const usScore = us.score ?? 0;
+      const themScore = them.score ?? 0;
+      const innings = g.linescore && g.linescore.currentInning;
+      games.push({
+        date: g.gameDate.slice(0, 10),
+        opponent: them.team.name,
+        home: isHome,
+        result: usScore > themScore ? "W" : "L",
+        teamScore: usScore,
+        oppScore: themScore,
+        note: innings && innings !== 9 ? `${innings} innings` : "",
+      });
+    });
+  });
+
+  games.sort((a, b) => (a.date < b.date ? -1 : 1));
+  return games.slice(-8);
+}
+
+async function fetchStandings(leagueId, divisionId) {
+  const season = mlbSeasonYear();
+  const url = `https://statsapi.mlb.com/api/v1/standings?leagueId=${leagueId}&season=${season}&standingsTypes=regularSeason`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+
+  const division = (data.records || []).find(r => r.division && r.division.id === divisionId);
+  if (!division) throw new Error("Division not found");
+
+  const rows = division.teamRecords
+    .slice()
+    .sort((a, b) => a.divisionRank - b.divisionRank)
+    .map(r => {
+      const w = r.leagueRecord.wins;
+      const l = r.leagueRecord.losses;
+      const pct = r.leagueRecord.pct || (w + l > 0 ? (w / (w + l)).toFixed(3).replace(/^0/, "") : ".000");
+      return { team: r.team.name, w, l, pct, gb: r.gamesBack };
+    });
+
+  return { rows, groupName: division.division.name };
+}
+
+async function fetchTeamRoster(teamId) {
+  const season = mlbSeasonYear();
+  const url = `https://statsapi.mlb.com/api/v1/teams/${teamId}/roster?rosterType=active&hydrate=person(stats(type=season,group=[hitting,pitching],season=${season}))`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  const roster = data.roster || [];
+
+  const hitters = [];
+  const pitchers = [];
+
+  roster.forEach(entry => {
+    const person = entry.person || {};
+    const posType = (entry.position && entry.position.type) || "";
+    const statGroups = person.stats || [];
+    const hSplit = statGroups.find(s => s.group && s.group.displayName === "hitting");
+    const pSplit = statGroups.find(s => s.group && s.group.displayName === "pitching");
+    const hStat = hSplit && hSplit.splits && hSplit.splits[0] && hSplit.splits[0].stat;
+    const pStat = pSplit && pSplit.splits && pSplit.splits[0] && pSplit.splits[0].stat;
+
+    if (posType === "Pitcher" && pStat) {
+      pitchers.push({
+        name: person.fullName,
+        pos: (entry.position && entry.position.abbreviation) || "P",
+        ip: parseFloat(pStat.inningsPitched || "0"),
+        statLine: `${pStat.wins}-${pStat.losses} · ${pStat.era} ERA · ${pStat.strikeOuts} K`,
+      });
+    } else if (hStat) {
+      hitters.push({
+        name: person.fullName,
+        pos: (entry.position && entry.position.abbreviation) || "",
+        ab: hStat.atBats || 0,
+        statLine: `${hStat.avg} AVG · ${hStat.homeRuns} HR · ${hStat.rbi} RBI · ${hStat.ops} OPS`,
+      });
+    }
+  });
+
+  hitters.sort((a, b) => b.ab - a.ab);
+  pitchers.sort((a, b) => b.ip - a.ip);
+
+  return hitters.slice(0, 4).concat(pitchers.slice(0, 2))
+    .map(({ name, pos, statLine }) => ({ name, pos, statLine }));
+}
+
+async function attachLiveSection(container, team, sectionKey) {
+  if (!team.liveConfig) return;
+  const { teamId, leagueId, divisionId } = team.liveConfig;
+
+  try {
+    if (sectionKey === "scores") {
+      const games = await fetchRecentGames(teamId);
+      if (games.length === 0) return;
+      container.innerHTML = "";
+      const note = document.createElement("div");
+      note.className = "live-sync-note";
+      note.textContent = "Recent results synced live via MLB Stats API";
+      container.appendChild(note);
+      container.appendChild(renderScores(Object.assign({}, team, { scores: games })));
+    } else if (sectionKey === "standings" && leagueId && divisionId) {
+      const { rows, groupName } = await fetchStandings(leagueId, divisionId);
+      const liveTeam = Object.assign({}, team, {
+        standings: { group: groupName, rows, note: "Live via MLB Stats API" },
+      });
+      container.innerHTML = "";
+      container.appendChild(renderStandings(liveTeam));
+    } else if (sectionKey === "players") {
+      const players = await fetchTeamRoster(teamId);
+      if (players.length === 0) return;
+      container.innerHTML = "";
+      const note = document.createElement("div");
+      note.className = "live-sync-note";
+      note.textContent = "Active roster & season stats synced live via MLB Stats API";
+      container.appendChild(note);
+      container.appendChild(renderPlayers(Object.assign({}, team, { players })));
+    }
+  } catch (err) {
+    console.warn(`Live ${sectionKey} fetch failed, keeping sample data:`, err);
+  }
+}
+
 function initials(name) {
   return name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
 }
@@ -296,8 +439,15 @@ function renderPanel() {
   if (activeSection === "scores" && team.liveConfig) {
     content.appendChild(renderLiveBanner(team));
   }
-  content.appendChild(RENDERERS[activeSection](team));
+
+  const sectionContainer = document.createElement("div");
+  sectionContainer.appendChild(RENDERERS[activeSection](team));
+  content.appendChild(sectionContainer);
   panel.appendChild(content);
+
+  if (["scores", "players", "standings"].includes(activeSection)) {
+    attachLiveSection(sectionContainer, team, activeSection);
+  }
 }
 
 function initTheme() {

@@ -358,6 +358,13 @@ tr.highlight td { background: color-mix(in srgb, var(--team-accent) 12%, transpa
   50% { opacity: 0.55; }
 }
 
+.live-sync-note {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--team-accent);
+  padding: 0 0 10px;
+}
+
 .demo-banner {
   text-align: center;
   font-size: 12px;
