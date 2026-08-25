@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Platinum Leaderboard</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">
+    <span class="brand-mark">🏆</span>
+    <div>
+      <h1>Platinum Leaderboard</h1>
+      <p class="tagline">Score your PlayStation platinums by how hard they actually are</p>
+    </div>
+  </div>
+  <div class="header-actions">
+    <a class="back-link" href="../index.html">← Sports Tracker</a>
+    <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
+  </div>
+</header>
+
+<nav class="main-nav" id="main-nav" role="tablist" aria-label="Select section"></nav>
+
+<main id="panel"></main>
+
+<div class="demo-banner">
+  Sample data for demonstration — difficulty, hours, and rarity are illustrative, not scraped from PSNProfiles.
+  See <code>data.js</code> to plug in a real trophy data source.
+</div>
+
+<footer class="site-footer">
+  <p>Scoring inspired by PSNProfiles' rarity tiers and completion-time tracking. Not affiliated with PSNProfiles or Sony.</p>
+</footer>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
