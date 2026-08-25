@@ -84,8 +84,6 @@
     color: #fff;
     margin-bottom: 16px;
   }
-  .app-card.sports .app-icon { background: linear-gradient(135deg, #0c2340, #bd3039); }
-  .app-card.plat .app-icon { background: linear-gradient(135deg, #003791, #0070d1); }
   .app-card h2 { margin: 0 0 6px; font-size: 18px; }
   .app-card p { margin: 0; font-size: 13px; color: var(--text-muted); line-height: 1.5; }
 </style>
@@ -94,23 +92,26 @@
 
 <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">🌙</button>
 
-<h1>App Hub</h1>
-<p class="subtitle">Pick an app to open</p>
+<h1>My Projects</h1>
+<p class="subtitle">Pick a project to open</p>
 
-<div class="grid">
-  <a class="app-card sports" href="sports-tracker/index.html">
-    <div class="app-icon">🏈</div>
-    <h2>Boston Sports Tracker</h2>
-    <p>Scores, player stats, schedule, and standings for the Patriots, Red Sox, and Celtics.</p>
-  </a>
-  <a class="app-card plat" href="platinum-leaderboard/index.html">
-    <div class="app-icon">🏆</div>
-    <h2>Platinum Leaderboard</h2>
-    <p>A scored leaderboard for PlayStation platinum trophies, weighted by difficulty, time, and rarity.</p>
-  </a>
-</div>
+<div class="grid" id="project-grid"></div>
 
+<script src="projects.js"></script>
 <script>
+  const grid = document.getElementById("project-grid");
+  PROJECTS.forEach(p => {
+    const card = document.createElement("a");
+    card.className = "app-card";
+    card.href = p.path;
+    card.innerHTML = `
+      <div class="app-icon" style="background: linear-gradient(135deg, ${p.gradient[0]}, ${p.gradient[1]})">${p.icon}</div>
+      <h2>${p.title}</h2>
+      <p>${p.description}</p>
+    `;
+    grid.appendChild(card);
+  });
+
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     document.getElementById("theme-toggle").textContent = theme === "dark" ? "☀️" : "🌙";
