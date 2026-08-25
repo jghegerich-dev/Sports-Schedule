@@ -1,5 +1,5 @@
 const TEAM_KEYS = ["patriots", "redsox", "celtics"];
-const SECTIONS = [
+const BASE_SECTIONS = [
   { key: "scores", label: "Scores" },
   { key: "players", label: "Player Stats" },
   { key: "schedule", label: "Schedule" },
@@ -119,15 +119,63 @@ function renderStandings(team) {
   return wrap;
 }
 
+function renderHistory(team) {
+  const wrap = document.createElement("div");
+
+  const source = document.createElement("div");
+  source.className = "standings-note";
+  source.style.padding = "0 0 10px";
+  source.innerHTML = `Source: <a href="${team.historySource.url}" target="_blank" rel="noopener">${team.historySource.label}</a>`;
+  wrap.appendChild(source);
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "table-wrap";
+  const rows = team.history.map(s => `
+    <tr>
+      <td>${s.year}</td>
+      <td>${s.lg}</td>
+      <td>${s.w}-${s.l}${s.t ? `-${s.t}` : ""}</td>
+      <td>${s.finish}</td>
+      <td>${s.playoffs || "—"}</td>
+      <td>${s.pf}</td>
+      <td>${s.pa}</td>
+      <td>${s.diff > 0 ? "+" + s.diff : s.diff}</td>
+      <td>${s.srs}</td>
+      <td>${s.coach}</td>
+      <td>${s.passer}</td>
+      <td>${s.rusher}</td>
+      <td>${s.receiver}</td>
+    </tr>
+  `).join("");
+  tableWrap.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Year</th><th>Lg</th><th>W-L-T</th><th>Finish</th><th>Playoffs</th>
+          <th>PF</th><th>PA</th><th>Diff</th><th>SRS</th>
+          <th>Coach</th><th>Passer</th><th>Rusher</th><th>Receiver</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+  wrap.appendChild(tableWrap);
+  return wrap;
+}
+
 const RENDERERS = {
   scores: renderScores,
   players: renderPlayers,
   schedule: renderSchedule,
   standings: renderStandings,
+  history: renderHistory,
 };
 
 function renderPanel() {
   const team = TEAMS[activeTeam];
+  const sections = team.history ? BASE_SECTIONS.concat([{ key: "history", label: "History" }]) : BASE_SECTIONS;
+  if (!sections.some(s => s.key === activeSection)) activeSection = "scores";
+
   const panel = document.getElementById("team-panel");
   panel.innerHTML = "";
   panel.style.setProperty("--team-color", team.color);
@@ -149,7 +197,7 @@ function renderPanel() {
   const tabs = document.createElement("div");
   tabs.className = "section-tabs";
   tabs.setAttribute("role", "tablist");
-  SECTIONS.forEach(s => {
+  sections.forEach(s => {
     const btn = document.createElement("button");
     btn.className = "section-tab";
     btn.setAttribute("role", "tab");
