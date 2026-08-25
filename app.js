@@ -126,6 +126,36 @@ async function fetchRecentGames(teamId, days = 21) {
   return games.slice(-8);
 }
 
+async function fetchUpcomingGames(teamId, days = 21) {
+  const start = new Date();
+  const end = new Date();
+  end.setDate(end.getDate() + days);
+  const fmt = d => d.toISOString().slice(0, 10);
+  const url = `https://statsapi.mlb.com/api/v1/schedule?sportId=1&teamId=${teamId}&startDate=${fmt(start)}&endDate=${fmt(end)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+
+  const games = [];
+  (data.dates || []).forEach(d => {
+    (d.games || []).forEach(g => {
+      if (g.status.abstractGameState === "Final") return;
+      const isHome = g.teams.home.team.id === teamId;
+      const opponent = isHome ? g.teams.away.team.name : g.teams.home.team.name;
+      games.push({
+        date: g.gameDate.slice(0, 10),
+        opponent,
+        home: isHome,
+        time: new Date(g.gameDate).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+        note: "",
+      });
+    });
+  });
+
+  games.sort((a, b) => (a.date < b.date ? -1 : 1));
+  return games.slice(0, 8);
+}
+
 async function fetchStandings(leagueId, divisionId) {
   const season = mlbSeasonYear();
   const url = `https://statsapi.mlb.com/api/v1/standings?leagueId=${leagueId}&season=${season}&standingsTypes=regularSeason`;
@@ -223,6 +253,15 @@ async function attachLiveSection(container, team, sectionKey) {
       note.textContent = "Active roster & season stats synced live via MLB Stats API";
       container.appendChild(note);
       container.appendChild(renderPlayers(Object.assign({}, team, { players })));
+    } else if (sectionKey === "schedule") {
+      const games = await fetchUpcomingGames(teamId);
+      if (games.length === 0) return;
+      container.innerHTML = "";
+      const note = document.createElement("div");
+      note.className = "live-sync-note";
+      note.textContent = "Upcoming schedule synced live via MLB Stats API";
+      container.appendChild(note);
+      container.appendChild(renderSchedule(Object.assign({}, team, { schedule: games })));
     }
   } catch (err) {
     console.warn(`Live ${sectionKey} fetch failed, keeping sample data:`, err);
@@ -445,7 +484,7 @@ function renderPanel() {
   content.appendChild(sectionContainer);
   panel.appendChild(content);
 
-  if (["scores", "players", "standings"].includes(activeSection)) {
+  if (["scores", "players", "standings", "schedule"].includes(activeSection)) {
     attachLiveSection(sectionContainer, team, activeSection);
   }
 }
